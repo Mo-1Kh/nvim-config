@@ -59,4 +59,43 @@ return {
       require("nvim-surround").setup({})
     end,
   },
+
+  -- 4. Vertical indentation guide lines
+  {
+    "lukas-reineke/indent-blankline.nvim",
+    main = "ibl",
+    event = { "BufReadPost", "BufNewFile" },
+    config = function()
+      require("ibl").setup({
+        indent = {
+          char = "│",
+          tab_char = "│",
+        },
+        scope = {
+          enabled = false, -- Keep pure indentation guides without requiring Treesitter
+        },
+        exclude = {
+          filetypes = {
+            "alpha",
+            "dashboard",
+            "neo-tree",
+            "oil",
+            "lazy",
+            "help",
+            "man",
+            "checkhealth",
+            "TelescopePrompt",
+            "TelescopeResults",
+            "",
+          },
+          buftypes = {
+            "terminal",
+            "nofile",
+            "quickfix",
+            "prompt",
+          },
+        },
+      })
+    end,
+  },
 }

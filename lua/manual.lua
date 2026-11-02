@@ -77,11 +77,11 @@ M.pages = {
         items = {
           { key = "d{motion}", desc = "Delete motion (e.g. dw delete word, d$ delete to end, dd delete line)" },
           { key = "c{motion}", desc = "Change motion: delete and enter Insert mode (e.g. cw, c$, cc)" },
-          { key = "y{motion}", desc = "Yank (copy) motion (e.g. yw copy word, yy copy line, y$ to end)" },
+          { key = "y{motion}", desc = "Yank (copy) to system clipboard with brief highlight (yw, yy, y$)" },
           { key = ">{motion} / <{motion}", desc = "Indent / unindent motion (>> / << for current line)" },
           { key = "={motion}", desc = "Auto-indent motion (== for current line, gg=G for whole file)" },
           { key = "~ / g~{motion}", desc = "Toggle uppercase/lowercase of character or motion (gu lower, gU upper)" },
-          { key = "u / <C-r>", desc = "Undo last change / Redo undone change" },
+          { key = "u / <C-r>", desc = "Undo last change / Redo (persists across closed files & sessions!)" },
           { key = ".", desc = "Repeat the last editing command" },
         },
       },
@@ -109,7 +109,7 @@ M.pages = {
           { key = "r{c} / R", desc = "Replace single character with {c} / Enter continuous Replace mode" },
           { key = "s / S", desc = "Delete char and insert / Delete entire line and insert" },
           { key = "D / C", desc = "Delete to end of line (d$) / Change to end of line (c$)" },
-          { key = "p / P", desc = "Paste after cursor (or below line) / Paste before cursor (or above line)" },
+          { key = "p / P", desc = "Paste from system clipboard after cursor (or below) / before cursor" },
           { key = "J", desc = "Join line below onto the end of current line" },
         },
       },
@@ -117,6 +117,8 @@ M.pages = {
         heading = "Visual Mode, Search, Marks & Macros",
         items = {
           { key = "v / V / <C-v>", desc = "Character visual / Linewise visual / Block (column) visual mode" },
+          { key = "J / K  (Visual mode)", desc = "Move selected lines down / up and re-indent automatically" },
+          { key = "< / >  (Visual mode)", desc = "Unindent / indent selected lines and stay in Visual mode" },
           { key = "gv / o", desc = "Reselect last visual selection / Swap cursor to other end of selection" },
           { key = "/{pattern} / ?{pattern}", desc = "Search forward / backward (n next match, N previous match)" },
           { key = "* / #", desc = "Search forward / backward for exact word under cursor" },
@@ -124,7 +126,7 @@ M.pages = {
           { key = "m{a-z} / '{a-z}", desc = "Set mark {a-z} at cursor / Jump to mark {a-z} (M{A-Z} for global marks)" },
           { key = "q{a-z} ... q", desc = "Record macro into register {a-z}, press q to stop recording" },
           { key = "@{a-z} / @@", desc = "Replay macro {a-z} / Repeat last replayed macro (e.g. 10@a)" },
-          { key = "\"+y / \"+p", desc = "Yank to / paste from system clipboard" },
+          { key = "y / d / p", desc = "Automatically synced with system clipboard (unnamedplus)" },
         },
       },
     },
@@ -168,6 +170,13 @@ M.pages = {
           { key = "ds( / ds{ / ds\"", desc = "Delete surrounding (), {}, [], or \"\" and leave inner text untouched" },
         },
       },
+      {
+        heading = "Visual Indentation Guides (indent-blankline.nvim)",
+        items = {
+          { key = "│  (Automatic)", desc = "Draws vertical indent guide lines on nested code blocks" },
+          { key = ":IBLToggle", desc = "Toggle indentation guide lines on / off" },
+        },
+      },
     },
   },
 
@@ -175,7 +184,7 @@ M.pages = {
     id = "core",
     icon = " ",
     title = "Core Config & Window Splits",
-    summary = "Custom general keymaps, search clearing, split creation & navigation",
+    summary = "Custom general keymaps, QoL behaviors, split creation & navigation",
     sections = {
       {
         heading = "General Editor Keymaps (lua/vim-options.lua)",
@@ -183,8 +192,20 @@ M.pages = {
           { key = "<Space>", desc = "Leader key (<leader>)" },
           { key = "JJ", desc = "Exit Insert mode quickly (mapped to <Esc>)" },
           { key = "<Space>h", desc = "Clear active search highlighting (:nohlsearch)" },
+          { key = "J / K  (Visual mode)", desc = "Move selected lines down / up and auto-indent" },
+          { key = "< / >  (Visual mode)", desc = "Unindent / indent selected lines while keeping selection" },
           { key = "<Space>m", desc = "Open this Keybinds & Motions Manual picker (:Manual)" },
           { key = "<Space>as", desc = "Open animated ASCII Startup Screen" },
+        },
+      },
+      {
+        heading = "Built-in Quality-of-Life Features (lua/vim-options.lua)",
+        items = {
+          { key = "Persistent Undo", desc = "Undo history (u / <C-r>) is saved to disk across file closes & sessions" },
+          { key = "System Clipboard", desc = "All yanks (y), deletes (d), and pastes (p) sync with OS clipboard" },
+          { key = "Highlight on Yank", desc = "Briefly flashes copied text for 150ms when yanking" },
+          { key = "Restore Cursor", desc = "Reopening a file jumps back to the last edited line automatically" },
+          { key = "Clean Multi-Comment", desc = "Pressing <Enter> or o/O inside /* ... */ never forces leading '*' chars" },
         },
       },
       {
