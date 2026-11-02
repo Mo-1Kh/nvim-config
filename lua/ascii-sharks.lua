@@ -436,8 +436,7 @@ local function setup_highlights()
   vim.api.nvim_set_hl(0, "SharkFooter", { bg = bg_hex, fg = rgb_to_hex( unpack(const_rgb) ), italic = true })
 end
 
--- Single very long dragon in Dragon mode (with 3 color/style variants on `s`),
--- classic shark school in Sharks mode, and 3 Meteorite Shower presets in Meteor mode.
+-- Single animation per scene: 1st Meteor preset, 2nd Dragon preset, 2nd Sharks preset.
 local DRAGON_NODES = 56
 
 local SCENE_PRESETS = {
@@ -452,45 +451,13 @@ local SCENE_PRESETS = {
       spawn_rate = 0.22,
       bolide_chance = 0.26,
     },
-    {
-      name = "Cobalt Ion Shower",
-      palette = "cobalt",
-      -- Originating from above-left at a steeper angle
-      dir_x = 0.70,
-      dir_y = 0.71,
-      max_meteors = 20,
-      spawn_rate = 0.17,
-      bolide_chance = 0.22,
-    },
-    {
-      name = "Emerald Chondrite Rain",
-      palette = "emerald",
-      -- Coming from above, slanting toward the bottom-left (/)
-      dir_x = -0.74,
-      dir_y = 0.67,
-      max_meteors = 17,
-      spawn_rate = 0.20,
-      bolide_chance = 0.28,
-    },
   },
   dragon = {
     {
-      { kind = "dragon", size = 1.0, tint = "dragon_gold" },
-    },
-    {
       { kind = "leviathan", size = 1.0, tint = "dragon_jade" },
-    },
-    {
-      { kind = "dragon", size = 1.0, tint = "dragon_crimson" },
     },
   },
   sharks = {
-    {
-      { kind = "greathammer", size = 1.0 },
-      { kind = "zebra", size = 0.78 },
-      { kind = "hammerhead", size = 0.86 },
-      { kind = "classic", size = 0.74 },
-    },
     {
       { kind = "classic", size = 1.0 },
       { kind = "tiger", size = 0.88 },
@@ -1337,8 +1304,8 @@ local MENU_ITEMS = {
   { key = "g", icon = "󰱼 ", desc = "Live Grep", cmd = "Telescope live_grep" },
   { key = "r", icon = "󰋚 ", desc = "Recent Files", cmd = "Telescope oldfiles" },
   { key = "e", icon = "󰈔 ", desc = "New File", cmd = "enew" },
+  { key = "m", icon = "󰌌 ", desc = "Keybinds Manual", cmd = "Manual" },
   { key = "a", icon = "🐉 ", desc = "Switch Animation", cmd = "SWITCH_SCENE" },
-  { key = "s", icon = "󰈺 ", desc = "Switch Variant", cmd = "SHARK_PRESET" },
   { key = "l", icon = "󰒲 ", desc = "Lazy Plugins", cmd = "Lazy" },
   { key = "q", icon = "󰅚 ", desc = "Quit Neovim", cmd = "qa" },
 }
@@ -1778,9 +1745,9 @@ local function render_frame(buf, sim)
   local day_name = DAYS_OF_WEEK[os.date("*t").wday] or "Monday"
   local header_lines = WEEK_HEADERS[day_name]
   local total_ui_height = #header_lines + 2 + #MENU_ITEMS + 4
-  local start_row = math.max(1, center_r - math.floor(total_ui_height / 2))
+  local start_row = math.max(0, center_r - math.floor(total_ui_height / 2))
 
-  if cols > box_w + 4 and rows > total_ui_height then
+  if cols > box_w + 4 and rows >= total_ui_height - 3 then
     local cur_row = start_row
 
     -- 1. ASCII Day-of-the-Week Banner
@@ -1872,8 +1839,8 @@ end
 function M.start(initial_scene)
   setup_highlights()
 
+  local prev_buf = vim.api.nvim_get_current_buf()
   local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_set_current_buf(buf)
 
   vim.bo[buf].buftype = "nofile"
   vim.bo[buf].bufhidden = "wipe"
@@ -1881,7 +1848,31 @@ function M.start(initial_scene)
   vim.bo[buf].buflisted = false
   vim.bo[buf].filetype = "alpha"
 
+  vim.api.nvim_set_current_buf(buf)
+
+  -- Delete the initial empty [No Name] buffer so it doesn't linger as a tab
+  if
+    prev_buf ~= buf
+    and vim.api.nvim_buf_is_valid(prev_buf)
+    and vim.api.nvim_buf_get_name(prev_buf) == ""
+    and not vim.bo[prev_buf].modified
+    and vim.bo[prev_buf].buftype == ""
+    and vim.api.nvim_buf_line_count(prev_buf) <= 1
+    and (vim.api.nvim_buf_get_lines(prev_buf, 0, 1, false)[1] or "") == ""
+  then
+    pcall(vim.api.nvim_buf_delete, prev_buf, { force = true })
+  end
+
   local win = vim.api.nvim_get_current_win()
+  local saved_wo = {
+    number = vim.wo[win].number,
+    relativenumber = vim.wo[win].relativenumber,
+    cursorline = vim.wo[win].cursorline,
+    signcolumn = vim.wo[win].signcolumn,
+    wrap = vim.wo[win].wrap,
+    winhl = vim.wo[win].winhl,
+  }
+
   vim.wo[win].number = false
   vim.wo[win].relativenumber = false
   vim.wo[win].cursorline = false
@@ -1897,6 +1888,22 @@ function M.start(initial_scene)
 
   local uv = vim.uv or vim.loop
   local timer = uv.new_timer()
+  local restored = false
+
+  local function restore_win()
+    if restored then
+      return
+    end
+    restored = true
+    if vim.api.nvim_win_is_valid(win) then
+      vim.wo[win].number = saved_wo.number
+      vim.wo[win].relativenumber = saved_wo.relativenumber
+      vim.wo[win].cursorline = saved_wo.cursorline
+      vim.wo[win].signcolumn = saved_wo.signcolumn
+      vim.wo[win].wrap = saved_wo.wrap
+      vim.wo[win].winhl = saved_wo.winhl
+    end
+  end
 
   local function stop_timer()
     if timer then
@@ -1906,6 +1913,7 @@ function M.start(initial_scene)
       end
       timer = nil
     end
+    restore_win()
   end
 
   -- Map dashboard shortcut keys (keep animating while floating pickers like Telescope/Lazy are open)
@@ -1930,7 +1938,7 @@ function M.start(initial_scene)
   end
 
   -- Only stop when the startup buffer itself is wiped/hidden (not when moving focus to Neo-tree or floats)
-  vim.api.nvim_create_autocmd({ "BufWipeout", "BufHidden", "BufDelete" }, {
+  vim.api.nvim_create_autocmd({ "BufWipeout", "BufHidden", "BufDelete", "BufWinLeave" }, {
     buffer = buf,
     once = true,
     callback = stop_timer,

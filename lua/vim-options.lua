@@ -15,6 +15,14 @@ vim.opt.cursorline = true     -- Highlight current cursor line
 vim.opt.linebreak = true      -- Wrap long lines cleanly at word boundaries
 vim.opt.scrolloff = 10        -- Keep at least 10 lines visible above/below cursor
 
+-- ------------------------ Indentation & Formatting ------------------------ --
+vim.opt.expandtab = true      -- Convert tabs to spaces
+vim.opt.tabstop = 2           -- Number of spaces a <Tab> counts for
+vim.opt.softtabstop = 2       -- Number of spaces <Tab>/<BS> uses while editing
+vim.opt.shiftwidth = 2        -- Number of spaces for each step of auto-indent
+vim.opt.autoindent = true     -- Keep indentation from previous line
+vim.opt.smartindent = true    -- Automatically indent inside {}, (), [] blocks
+
 -- ------------------------ Search & Substitution --------------------------- --
 vim.opt.ignorecase = true     -- Case-insensitive searching by default
 vim.opt.smartcase = true      -- Case-sensitive if search contains uppercase
@@ -31,6 +39,10 @@ vim.keymap.set("i", "JJ", "<Esc>", { desc = "Exit insert mode" })
 
 -- Clear search highlighting
 vim.keymap.set("n", "<leader>h", "<cmd>nohlsearch<CR>", { desc = "Clear search highlights" })
+
+-- Stay in Visual mode when indenting left/right with < and >
+vim.keymap.set("v", "<", "<gv", { desc = "Unindent selection and keep visual mode" })
+vim.keymap.set("v", ">", ">gv", { desc = "Indent selection and keep visual mode" })
 
 -- Navigate between split panes
 vim.keymap.set("n", "<C-k>", "<cmd>wincmd k<CR>", { desc = "Move focus to upper split" })

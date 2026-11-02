@@ -37,6 +37,22 @@ return {
           end
         end,
       })
+
+      vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
+        callback = function(ev)
+          local w = vim.api.nvim_get_current_win()
+          if vim.bo[ev.buf].filetype ~= "alpha" and vim.wo[w].winhl:find("SharkBg") then
+            vim.wo[w].winhl = ""
+            if vim.bo[ev.buf].buftype == "" then
+              vim.wo[w].number = true
+              vim.wo[w].relativenumber = true
+              vim.wo[w].cursorline = true
+              vim.wo[w].signcolumn = "yes"
+              vim.wo[w].wrap = true
+            end
+          end
+        end,
+      })
     end,
   },
 }

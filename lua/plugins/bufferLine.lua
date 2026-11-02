@@ -14,18 +14,35 @@ return {
         end
 
         local buffers = vim.tbl_filter(function(b)
-          return b.buflisted == 1 and b.bufnr ~= bufnr and vim.bo[b.bufnr].filetype ~= "neo-tree"
+          return b.listed == 1
+            and b.bufnr ~= bufnr
+            and vim.bo[b.bufnr].filetype ~= "neo-tree"
+            and not (b.name == "" and b.changed == 0)
         end, vim.fn.getbufinfo({ buflisted = 1 }))
 
         for _, win in ipairs(vim.fn.win_findbuf(bufnr)) do
           vim.api.nvim_win_call(win, function()
             if #buffers > 0 then
               vim.cmd("BufferLineCyclePrev")
-              if vim.api.nvim_get_current_buf() == bufnr then
+              local cur = vim.api.nvim_get_current_buf()
+              if cur == bufnr or (vim.api.nvim_buf_get_name(cur) == "" and not vim.bo[cur].modified) then
                 vim.api.nvim_set_current_buf(buffers[1].bufnr)
               end
             else
               vim.cmd("enew")
+              local empty_buf = vim.api.nvim_get_current_buf()
+              vim.bo[empty_buf].buflisted = false
+              vim.bo[empty_buf].bufhidden = "wipe"
+              vim.api.nvim_create_autocmd({ "InsertEnter", "TextChanged" }, {
+                buffer = empty_buf,
+                once = true,
+                callback = function()
+                  if vim.api.nvim_buf_is_valid(empty_buf) then
+                    vim.bo[empty_buf].buflisted = true
+                    vim.bo[empty_buf].bufhidden = ""
+                  end
+                end,
+              })
             end
           end)
         end
@@ -33,7 +50,33 @@ return {
         if vim.api.nvim_buf_is_valid(bufnr) then
           vim.cmd("bdelete! " .. bufnr)
         end
+
+        -- Clean up any leftover unmodified [No Name] buffers not shown in any window
+        for _, b in ipairs(vim.fn.getbufinfo({ buflisted = 1 })) do
+          if b.name == "" and b.changed == 0 and #b.windows == 0 and vim.api.nvim_buf_is_valid(b.bufnr) then
+            pcall(vim.api.nvim_buf_delete, b.bufnr, { force = true })
+          end
+        end
       end
+
+      -- Automatically remove hidden, unmodified [No Name] buffers when switching to a real file
+      vim.api.nvim_create_autocmd("BufEnter", {
+        callback = function(ev)
+          if vim.api.nvim_buf_get_name(ev.buf) ~= "" then
+            for _, b in ipairs(vim.fn.getbufinfo({ buflisted = 1 })) do
+              if
+                b.bufnr ~= ev.buf
+                and b.name == ""
+                and b.changed == 0
+                and #b.windows == 0
+                and vim.api.nvim_buf_is_valid(b.bufnr)
+              then
+                pcall(vim.api.nvim_buf_delete, b.bufnr, { force = true })
+              end
+            end
+          end
+        end,
+      })
 
       -- Ensure buffer switching happens in an editor window, not inside the Neo-tree sidebar
       local function focus_editor_then(cmd)
@@ -52,7 +95,16 @@ return {
               vim.cmd("botright vsplit")
             end
           end
+          local before = vim.api.nvim_get_current_buf()
           vim.cmd(cmd)
+          if not vim.bo[before].buflisted and vim.api.nvim_get_current_buf() == before then
+            for _, b in ipairs(vim.fn.getbufinfo({ buflisted = 1 })) do
+              if vim.bo[b.bufnr].filetype ~= "neo-tree" then
+                vim.api.nvim_set_current_buf(b.bufnr)
+                break
+              end
+            end
+          end
         end
       end
 
