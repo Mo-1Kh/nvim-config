@@ -39,7 +39,17 @@ vim.opt.inccommand = "split"  -- Live preview of :substitute changes in a split
 -- ------------------------ Files, Clipboard & Splits ----------------------- --
 vim.opt.swapfile = false          -- Disable swap files
 vim.opt.undofile = true           -- Persistent undo history across sessions
+
+-- Use Kitty / terminal OSC 52 clipboard when wl-clipboard or xclip aren't installed
+if
+  vim.fn.executable("wl-copy") == 0
+  and vim.fn.executable("xclip") == 0
+  and vim.fn.executable("xsel") == 0
+then
+  vim.g.clipboard = "osc52"
+end
 vim.opt.clipboard = "unnamedplus" -- Sync yank/paste with system clipboard
+
 vim.opt.splitright = true         -- Open vertical splits to the right
 vim.opt.splitbelow = true         -- Open horizontal splits below
 
@@ -74,6 +84,11 @@ vim.keymap.set("i", "JJ", "<Esc>", { desc = "Exit insert mode" })
 
 -- Clear search highlighting
 vim.keymap.set("n", "<leader>h", "<cmd>nohlsearch<CR>", { desc = "Clear search highlights" })
+
+-- Don't overwrite clipboard when deleting single characters with x/X or pasting over selection
+vim.keymap.set({ "n", "v" }, "x", '"_x', { desc = "Delete char without overwriting clipboard" })
+vim.keymap.set({ "n", "v" }, "X", '"_X', { desc = "Delete char backward without overwriting clipboard" })
+vim.keymap.set("x", "p", '"_dP', { desc = "Paste over selection without overwriting clipboard" })
 
 -- Stay in Visual mode when indenting left/right with < and >
 vim.keymap.set("v", "<", "<gv", { desc = "Unindent selection and keep visual mode" })
