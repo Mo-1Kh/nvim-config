@@ -392,17 +392,16 @@ M.pages = {
     id = "startup",
     icon = "☄️ ",
     title = "Startup Screen & Commands",
-    summary = "One-key shortcuts on the animated home screen and commands to switch background animations",
+    summary = "One-key shortcuts on the animated Meteorite Shower home screen",
     sections = {
       {
-        heading = "Single-Key Shortcuts on the Startup Screen (lua/ascii-sharks.lua)",
+        heading = "Single-Key Shortcuts on the Startup Screen (lua/ascii-meteor.lua)",
         items = {
           { key = "f", desc = "Press 'f' to search and open a file in your project (Telescope Find Files)" },
           { key = "g", desc = "Press 'g' to search for text inside files across your project (Telescope Live Grep)" },
           { key = "r", desc = "Press 'r' to pick from your recently edited files" },
           { key = "e", desc = "Press 'e' to start typing in a brand-new empty file" },
           { key = "m", desc = "Press 'm' to open this interactive Keybinds & Motions Manual" },
-          { key = "a", desc = "Press 'a' to cycle the live background animation (Meteorite Shower -> Dragon -> Sharks)" },
           { key = "l", desc = "Press 'l' to open the Lazy.nvim plugin manager window" },
           { key = "q", desc = "Press 'q' to quit Neovim" },
         },
@@ -413,8 +412,6 @@ M.pages = {
           { key = "<Space>m  or  :Manual", desc = "Open this Manual from any file (or type :Manual git to jump straight to a specific page)" },
           { key = "<Space>as", desc = "Return to the animated ASCII startup dashboard at any time" },
           { key = ":Meteors", desc = "Open the startup dashboard with the falling Meteorite Shower animation" },
-          { key = ":Dragon", desc = "Open the startup dashboard with the breathing Dragon & Embers animation" },
-          { key = ":Sharks", desc = "Open the startup dashboard with the swimming Sharks & Ocean animation" },
         },
       },
     },
