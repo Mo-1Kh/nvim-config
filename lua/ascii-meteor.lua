@@ -37,10 +37,27 @@ local function mix_rgb(c1, c2, t)
   }
 end
 
+-- Avoid `link = false`: in Neovim 0.12 it resolves through the active
+-- window's `winhl` (such as `Normal:MeteorBg` on the startup screen).
 local function get_hl_rgb(name, attr, fallback)
-  local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = name, link = false })
-  if ok and hl and hl[attr] then
-    return { int_to_rgb(hl[attr], fallback) }
+  local cur = name
+  local seen = {}
+  for _ = 1, 10 do
+    if not cur or seen[cur] then
+      return fallback
+    end
+    seen[cur] = true
+    local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = cur })
+    if not ok or not hl then
+      return fallback
+    end
+    if not hl.link then
+      if hl[attr] then
+        return { int_to_rgb(hl[attr], fallback) }
+      end
+      return fallback
+    end
+    cur = hl.link
   end
   return fallback
 end
@@ -837,8 +854,8 @@ local function render_frame(buf, sim)
     end
   end
 
-  -- Flush redraw immediately even when typing in Command mode (:)
-  if vim.fn.mode():match("^[cr]") and vim.api.nvim__redraw then
+  -- Flush redraw immediately even when typing in Command mode (:) or waiting on <Space>
+  if (sim.force_redraw or vim.fn.mode():match("^[cr]")) and vim.api.nvim__redraw then
     pcall(vim.api.nvim__redraw, { buf = buf, valid = true })
   end
 end
@@ -931,6 +948,134 @@ function M.start()
       vim.cmd(item.cmd)
     end, { buffer = buf, nowait = true, silent = true, desc = item.desc })
   end
+
+  -- Keep meteor animation running when <Space> (<leader>) is pressed instead of stalling inside vgetorpeek
+  local attach_space_handler
+  local function collect_space_maps()
+    local exact, prefixes = {}, {}
+    local function add_list(list)
+      for _, m in ipairs(list) do
+        if m.lhs and m.lhs:sub(1, 1) == " " and #m.lhs > 1 then
+          exact[m.lhs] = m
+          for i = 1, #m.lhs - 1 do
+            prefixes[m.lhs:sub(1, i)] = true
+          end
+        end
+      end
+    end
+    add_list(vim.api.nvim_get_keymap("n"))
+    add_list(vim.api.nvim_buf_get_keymap(buf, "n"))
+    return exact, prefixes
+  end
+
+  local function dispatch_space_map(m)
+    if not m then
+      return
+    end
+    if m.expr == 1 then
+      pcall(vim.keymap.del, "n", "<Space>", { buffer = buf })
+      local res = m.callback and m.callback() or (m.rhs and vim.api.nvim_eval(m.rhs))
+      if type(res) == "string" and res ~= "" then
+        local keys = vim.api.nvim_replace_termcodes(res, true, false, true)
+        vim.api.nvim_feedkeys(keys, m.noremap == 1 and "n" or "m", false)
+      end
+      vim.api.nvim_create_autocmd("SafeState", {
+        once = true,
+        callback = function()
+          if timer and vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_get_current_buf() == buf then
+            attach_space_handler()
+          end
+        end,
+      })
+    elseif m.callback then
+      m.callback()
+    elseif m.rhs then
+      local keys = vim.api.nvim_replace_termcodes(m.rhs, true, false, true)
+      if m.noremap == 1 then
+        vim.api.nvim_feedkeys(keys, "n", false)
+      else
+        pcall(vim.keymap.del, "n", "<Space>", { buffer = buf })
+        vim.api.nvim_feedkeys(keys, "m", false)
+        vim.api.nvim_create_autocmd("SafeState", {
+          once = true,
+          callback = function()
+            if timer and vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_get_current_buf() == buf then
+              attach_space_handler()
+            end
+          end,
+        })
+      end
+    end
+  end
+
+  local leader_active = false
+  attach_space_handler = function()
+    if not vim.api.nvim_buf_is_valid(buf) then
+      return
+    end
+    vim.keymap.set("n", "<Space>", function()
+      if leader_active or vim.g.mapleader ~= " " then
+        return
+      end
+      leader_active = true
+      sim.force_redraw = true
+
+      local exact, prefixes = collect_space_maps()
+      local seq = " "
+      local timeout_ns = (vim.o.timeout and math.max(50, vim.o.timeoutlen) or 1000) * 1e6
+      local deadline = uv.hrtime() + timeout_ns
+      local matched = nil
+
+      while uv.hrtime() < deadline do
+        if not timer or not vim.api.nvim_buf_is_valid(buf) or vim.api.nvim_get_current_buf() ~= buf then
+          break
+        end
+        local ok, ch = pcall(vim.fn.getcharstr, 0)
+        if ok and ch and ch ~= "" then
+          local kt = vim.fn.keytrans(ch)
+          if kt:match("^<Focus") or kt == "<Ignore>" or kt:match("^<Mouse") or kt:match("^<Scroll") then
+            -- Ignore terminal focus/mouse noise without breaking leader wait
+          elseif ch == "\27" or ch == "\3" then
+            break
+          else
+            seq = seq .. ch
+            if exact[seq] and not prefixes[seq] then
+              matched = exact[seq]
+              break
+            elseif not exact[seq] and not prefixes[seq] then
+              break
+            else
+              deadline = uv.hrtime() + timeout_ns
+            end
+          end
+        end
+        vim.wait(15, function()
+          return false
+        end, 15, false)
+      end
+
+      if not matched and exact[seq] then
+        matched = exact[seq]
+      end
+
+      sim.force_redraw = false
+      leader_active = false
+
+      if matched then
+        dispatch_space_map(matched)
+      end
+    end, { buffer = buf, nowait = true, silent = true, desc = "Leader prefix (animated)" })
+  end
+
+  attach_space_handler()
+  vim.api.nvim_create_autocmd("BufEnter", {
+    buffer = buf,
+    callback = function()
+      if timer then
+        attach_space_handler()
+      end
+    end,
+  })
 
   -- Only stop when the startup buffer itself is wiped/hidden (not when moving focus to Neo-tree or floats)
   vim.api.nvim_create_autocmd({ "BufWipeout", "BufHidden", "BufDelete", "BufWinLeave" }, {

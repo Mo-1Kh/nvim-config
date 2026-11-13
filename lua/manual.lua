@@ -7,9 +7,26 @@ local M = {}
 local ns = vim.api.nvim_create_namespace("nvim_manual_popup")
 
 local function setup_highlights()
+  -- Avoid `link = false`: in Neovim 0.12 it resolves through the active
+  -- window's `winhl` (e.g. `Normal:MeteorBg` on the startup screen).
   local function get_hl(name)
-    local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = name, link = false })
-    return (ok and hl) or {}
+    local cur = name
+    local seen = {}
+    for _ = 1, 10 do
+      if not cur or seen[cur] then
+        return {}
+      end
+      seen[cur] = true
+      local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = cur })
+      if not ok or not hl then
+        return {}
+      end
+      if not hl.link then
+        return hl
+      end
+      cur = hl.link
+    end
+    return {}
   end
 
   local normal = get_hl("Normal")
@@ -325,6 +342,7 @@ M.pages = {
         heading = "Opening Telescope Search From Anywhere (lua/plugins/telescope.lua)",
         items = {
           { key = "<Space>ff", desc = "Find File: type part of any filename to find and open it from anywhere in your project" },
+          { key = "<Space>fa", desc = "Find All Files: search all files including gitignored folders (like build/)" },
           { key = "<Space>fg", desc = "Find Text (Live Grep): type any word or code snippet to search inside every file in your project" },
           { key = "<Space><Space>", desc = "Recent Files: press Space twice to see a list of files you recently opened and jump right back in" },
         },
